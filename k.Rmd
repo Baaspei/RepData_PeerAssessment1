@@ -1,0 +1,80 @@
+---
+title: 'Reproducible Research: Peer Assessment 1'
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+
+## Libraries
+```{r Setup, echo=TRUE, include=FALSE}
+library("lubridate")
+library("dplyr")
+library("tidyr")
+library("ggplot2")
+```
+
+## Loading and preprocessing the data
+```{r Load, cache=TRUE}
+setwd("~/COURSERA/DATA SCIENTIST CERTIFICATE/COURSE 5/WEEK 1/R")
+activity <- read.csv("activity.csv")
+activity$date <- as_date(activity$date)
+```
+
+## What is mean total number of steps taken per day?
+```{r meanSteps}
+x<-group_by(drop_na(activity), date)%>%summarise(sum = sum(steps, na.rm = TRUE))
+hist(x$sum, breaks = 10)
+```
+The mean equals `r mean(x$sum)` and the median steps per day is `r median(x$sum)`
+
+## What is the average daily activity pattern?
+```{r averageDaily}
+w<-group_by(drop_na(activity), interval)%>%summarise(mean = mean(steps))
+plot(w$interval, w$mean, type = "l", xlab = "interval", ylab = "average #steps")
+```
+
+## Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r whichInterval}
+w$interval[which.max(w$mean)]
+```
+
+## Imputing missing values
+```{r imputting}
+#Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+sum(is.na(activity$steps))
+
+# Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+# activity$steps[is.na(activity$steps)]<-y Assign mean to all NAs
+
+# Create a new dataset that is equal to the original dataset but with the missing data filled in.
+w <- activity
+w2<-group_by(w, interval)%>%summarise(mean = mean(steps,na.rm = TRUE))
+
+left_join(w, w2, by="interval") ->m
+
+m$steps[is.na(w$steps)]<-m$mean[is.na(w$steps)]
+
+group_by(m, date)%>%summarise(sum = sum(steps))->n
+
+hist(n$sum, breaks = 10)
+
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r dayDifference}
+v <- mutate(activity, daysofweek = weekdays(activity$date, abbreviate = TRUE))
+
+# Create factor variable with two levels: weekday and weekend.
+grepl("S(at|un)", v$daysofweek)->v$isweekend
+
+# Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+v2<-group_by(v, interval, isweekend)%>%summarise(mean = mean(steps, na.rm = TRUE))
+
+par(mfrow=c(1,2))
+plot(v2$interval[v2$isweekend], v2$mean[v2$isweekend], type = "l", ylab = "Steps", xlab = "5 min Intervals on Weekend")
+
+plot(v2$interval[!v2$isweekend], v2$mean[!v2$isweekend], type = "l", ylab = "Steps", xlab = "5 min Intervals on Weekday")
+```
